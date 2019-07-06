@@ -38,6 +38,7 @@ e-mail   :  support@circuitsathome.com
 #define USB_REQUEST_GET_INTERFACE               10      // Standard Device Request - GET INTERFACE
 #define USB_REQUEST_SET_INTERFACE               11      // Standard Device Request - SET INTERFACE
 #define USB_REQUEST_SYNCH_FRAME                 12      // Standard Device Request - SYNCH FRAME
+#define USB_REQUEST_SET_IDLE                    0A      // HID Device Request - Set Idle
 
 #define USB_FEATURE_ENDPOINT_HALT               0       // CLEAR/SET FEATURE - Endpoint Halt
 #define USB_FEATURE_DEVICE_REMOTE_WAKEUP        1       // CLEAR/SET FEATURE - Device remote wake-up
@@ -68,6 +69,8 @@ e-mail   :  support@circuitsathome.com
 #define USB_DESCRIPTOR_OTG                      0x09    // bDescriptorType for an OTG Descriptor.
 
 #define HID_DESCRIPTOR_HID                      0x21
+#define HID_REPORT_DESCRIPTOR                   0x22
+
 
 
 

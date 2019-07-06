@@ -7,7 +7,7 @@
     <Revision>3</Revision>
   </ToolchainVersion>
   <BspID>com.sysprogs.arm.stm32</BspID>
-  <BspVersion>2018.12R2</BspVersion>
+  <BspVersion>2019.06</BspVersion>
   <McuID>STM32F103C8</McuID>
   <MCUDefinitionFile>STM32F1xxxx/DeviceDefinitions/stm32f103xb.xml</MCUDefinitionFile>
   <MCUProperties>
@@ -45,7 +45,7 @@
     <AllDependencies>
       <ProjectDependency>
         <RelativePath>stm32f103_usb_host.gpdsc</RelativePath>
-        <Timestamp>132048674589872012</Timestamp>
+        <Timestamp>132059904981457486</Timestamp>
       </ProjectDependency>
     </AllDependencies>
     <RootDirectory>

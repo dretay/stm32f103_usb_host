@@ -30,16 +30,24 @@ static u8 poll()
 
 	if ((int32_t)(HAL_GetTick() - device.next_poll_time) >= 0L) {
 		device.next_poll_time = HAL_GetTick() + device.endpoint_descriptor.bInterval;
-
+		//MAX3421E.write_register(rHCTL, bmRCVTOG0 );  //set toggle value
+		//u8 mode = MAX3421E.read_register(rMODE);
+		//u8 bmHubPre = 0;
+		//MAX3421E.write_register(rMODE, (true) ? mode | bmLOWSPEED | bmHubPre : mode & ~(bmHUBPRE | bmLOWSPEED));
+		//rcode = USBCORE.send_packet(tokIN, 0x01);
 		uint8_t buf[constBuffLen];
 
 		
-		for (uint8_t i = 0; i < device.config_descriptor.bNumInterfaces; i++) {
+//		for (uint8_t i = 0; i < device.config_descriptor.bNumInterfaces; i++) {
 			//uint8_t index = hidInterfaces[i].epIndex[epInterruptInIndex];
-			uint16_t read = device.endpoint_descriptor.wMaxPacketSize;
+			uint16_t read = 8;//device.endpoint_descriptor.wMaxPacketSize;
 
-			zero_memory(constBuffLen, buf);						
-			rcode = USBCORE.in_transfer(1, read);			
+			zero_memory(constBuffLen, buf);	
+			//USBCORE.set_address(7, 1);
+			
+			
+			rcode = USBCORE.in_transfer(1, 8);			
+			
 
 			if (rcode) {
 				if (rcode != hrNAK)
@@ -75,7 +83,7 @@ static u8 poll()
 //
 //			if (prs)
 //				prs->Parse(this, bHasReportId, (uint8_t)read, buf);
-		}
+//		}
 	}
 	return rcode;
 }
