@@ -363,6 +363,9 @@
     <ClCompile Include="MAX3421E.c">
       <Filter>Source files\usbhost</Filter>
     </ClCompile>
+    <ClCompile Include="log.c">
+      <Filter>Source files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="application.h">

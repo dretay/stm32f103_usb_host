@@ -20,6 +20,19 @@ static void save_buffer(uint8_t len, uint8_t *src, uint8_t *dest) {
 static void parse()
 {
 }
+
+typedef struct {
+
+	struct {
+		uint8_t bmLeftButton : 1;
+		uint8_t bmRightButton : 1;
+		uint8_t bmMiddleButton : 1;
+		uint8_t bmDummy : 5;
+	};
+	int8_t dX;
+	int8_t dY;
+} MOUSEINFO;
+
 static u8 poll()
 {
 	uint8_t rcode = 0;
@@ -28,63 +41,66 @@ static u8 poll()
 		return rcode;		
 	}
 
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_SET);
 	if ((int32_t)(HAL_GetTick() - device.next_poll_time) >= 0L) {
-		device.next_poll_time = HAL_GetTick() + device.endpoint_descriptor.bInterval;
-		//MAX3421E.write_register(rHCTL, bmRCVTOG0 );  //set toggle value
-		//u8 mode = MAX3421E.read_register(rMODE);
-		//u8 bmHubPre = 0;
-		//MAX3421E.write_register(rMODE, (true) ? mode | bmLOWSPEED | bmHubPre : mode & ~(bmHUBPRE | bmLOWSPEED));
-		//rcode = USBCORE.send_packet(tokIN, 0x01);
+		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_RESET);
+		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_SET);
+		device.next_poll_time = HAL_GetTick() + device.endpoint_descriptor.bInterval;		
 		uint8_t buf[constBuffLen];
-
-		
-//		for (uint8_t i = 0; i < device.config_descriptor.bNumInterfaces; i++) {
-			//uint8_t index = hidInterfaces[i].epIndex[epInterruptInIndex];
-			uint16_t read = 8;//device.endpoint_descriptor.wMaxPacketSize;
-
-			zero_memory(constBuffLen, buf);	
-			//USBCORE.set_address(7, 1);
+		uint16_t read = device.endpoint_descriptor.wMaxPacketSize;
+		zero_memory(constBuffLen, buf);	
 			
-			
-			rcode = USBCORE.in_transfer(1, 8);			
-			
+		rcode = USBCORE.in_transfer(device.endpoint_descriptor.bEndpointAddress, read);						
 
-			if (rcode) {
-				if (rcode != hrNAK)
-					//USBTRACE3("(hiduniversal.h) Poll:", rcode, 0x81);
-				return rcode;
-			}
-			memcpy(buf, USBCORE.get_usb_buffer(), constBuffLen);
+		if (rcode) {
+			if (rcode != hrNAK)
+				//USBTRACE3("(hiduniversal.h) Poll:", rcode, 0x81);
+			return rcode;
+		}
+		memcpy(buf, USBCORE.get_usb_buffer(), constBuffLen);
 
-			if (read > constBuffLen)
-				read = constBuffLen;
+		if (read > constBuffLen)
+			read = constBuffLen;
 
-			bool identical = buffers_identical(read, buf, prevBuf);
+		bool identical = buffers_identical(read, buf, prevBuf);
 
-			save_buffer(read, buf, prevBuf);
+		if (!identical)
+		{
+			MOUSEINFO *mouse_info = (MOUSEINFO*)buf;
+			MOUSEINFO *prev_mouse_info = (MOUSEINFO*)prevBuf;
 
-			if (identical)
+			if (prev_mouse_info->bmLeftButton == 0 && mouse_info->bmLeftButton == 1)
 			{
-				return 0;				
+				printfUART("Left Mouse Down\r\n");
 			}
-#if 0
-			Notify(PSTR("\r\nBuf: "), 0x80);
-
-			for (uint8_t i = 0; i < read; i++) {
-				D_PrintHex<uint8_t > (buf[i], 0x80);
-				Notify(PSTR(" "), 0x80);
+			if (prev_mouse_info->bmLeftButton == 1 && mouse_info->bmLeftButton == 0)
+			{
+				printfUART("Left Mouse Up\r\n");				
+			}			
+			if (prev_mouse_info->bmRightButton == 0 && mouse_info->bmRightButton == 1)
+			{
+				printfUART("Right Mouse Down\r\n");				
+			}			
+			if (prev_mouse_info->bmRightButton == 1 && mouse_info->bmRightButton == 0)
+			{
+				printfUART("Right Mouse Up\r\n");								
 			}
-
-			Notify(PSTR("\r\n"), 0x80);
-#endif
-//			ParseHIDData(this, bHasReportId, (uint8_t)read, buf);
-//
-//			HIDReportParser *prs = GetReportParser(((bHasReportId) ? *buf : 0));
-//
-//			if (prs)
-//				prs->Parse(this, bHasReportId, (uint8_t)read, buf);
-//		}
-	}
+			if (prev_mouse_info->bmMiddleButton == 0 && mouse_info->bmMiddleButton == 1)
+			{
+				printfUART("Middle Mouse Down\r\n");								
+			}
+			if (prev_mouse_info->bmMiddleButton == 1 && mouse_info->bmMiddleButton == 0)
+			{
+				printfUART("Middle Mouse Up\r\n");								
+			}			
+			if (prev_mouse_info->dX != mouse_info->dX || prev_mouse_info->dY != mouse_info->dY)
+			{
+				printfUART("dX=%d dY=%d\r\n", mouse_info->dX, mouse_info->dY);												
+			}			
+		}
+		save_buffer(read, buf, prevBuf);
+	}	
 	return rcode;
 }
 

@@ -16,27 +16,12 @@ static USBDevice* my_usb_device;
 static bool running = false;
 
 
-//from: https://electronics.stackexchange.com/questions/206113/how-do-i-use-the-printf-function-on-stm32
-void vprint(const char *fmt, va_list argp)
-{
-	char string[200];
-	if (0 < vsprintf(string, fmt, argp)) // build string
-		{
-			HAL_UART_Transmit(&huart1, (uint8_t*)string, strlen(string), 0xffffff);   // send message via UART
-		}
-}
 
-void printfUART(const char *fmt, ...) // custom printf() function
-{
-	va_list argp;
-	va_start(argp, fmt);
-	vprint(fmt, argp);
-	va_end(argp);
-}
 
 
 static void poll(void)
 {
+	HAL_Delay(10);
 	my_usb_device->poll();
 }
 static void set_device_address(u8 address)
@@ -308,6 +293,7 @@ static void parse_config_descriptor()
 					case HID_DESCRIPTOR_HID: 
 					{
 						USB_HID_DESCRIPTOR *descriptor = (USB_HID_DESCRIPTOR*)&usb_buffer[descriptor_offset];
+						memcpy(&my_usb_device->hid_descriptor, &usb_buffer[descriptor_offset], sizeof(USB_HID_DESCRIPTOR));
 						printfUART("\r\nHID Descriptor\r\n");				
 						printfUART("bLength: %d\r\n", descriptor->bLength);
 						printfUART("bDescriptorType: %d\r\n", descriptor->bDescriptorType);
@@ -324,7 +310,7 @@ static void parse_config_descriptor()
 						// check for endpoint descriptor type				
 						USB_ENDPOINT_DESCRIPTOR *descriptor = (USB_ENDPOINT_DESCRIPTOR*)&usb_buffer[descriptor_offset];
 						memcpy(&my_usb_device->endpoint_descriptor, &usb_buffer[descriptor_offset], sizeof(USB_ENDPOINT_DESCRIPTOR));
-
+						my_usb_device->endpoint_descriptor.bEndpointAddress = (descriptor->bEndpointAddress & 0x0F);
 						printfUART("Endpoint %u", (descriptor->bEndpointAddress & 0x0F));
 						if (descriptor->bEndpointAddress & 0x80)
 						{

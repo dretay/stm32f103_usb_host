@@ -12,6 +12,7 @@
 #include "types_shortcuts.h"
 #include "MAX3421E.h"
 #include "USBDevice.h"
+#include "log.h"
 
 // HRSL Bits 
 #define bmRCVTOGRD 0x10
