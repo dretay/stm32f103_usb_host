@@ -1,5 +1,19 @@
 #include "usbcore.h"
 
+static int probe_bus(void);
+static void busprobe(void);
+static void enumerate_device(void);
+static u8 in_transfer(u8 endpoint, u16 INbytes);
+static u8 control_write_no_data(u8 *pSUD);
+static void wait_frames(u8 num);
+static u8 send_packet(u8 token, u8 endpoint);
+static u8 print_error(u8 err);
+static u8 control_read_transfer(u8 *pSUD);
+//see: https://www.beyondlogic.org/usbnutshell/usb6.shtml
+static u8 my_control_read_transfer(u8 bmRequestType, u8 bRequest, u8 wValueLo, u8 wValueHi, u16 wIndex, u16 wLength);
+static u8 my_control_write_no_data(u8 bmRequestType, u8 bRequest, u8 wValueLo, u8 wValueHi, u16 wIndex, u16 wLength);
+static void initialize_device(void);
+
 extern UART_HandleTypeDef huart1;
 
 
@@ -7,18 +21,19 @@ extern UART_HandleTypeDef huart1;
 static u8 usb_buffer[2000];        // Big array to handle max size descriptor data
 
 static u16 VID, PID, nak_count, IN_nak_count, HS_nak_count;
-static unsigned int last_transfer_size;	
-unsigned volatile long timeval;  			// incremented by timer0 ISR
-u16 inhibit_send;
+static u32 last_transfer_size;	
 
 
 static USBDevice* my_usb_device;
-static bool running = false;
 
-
-
-
-
+static u8* get_usb_buffer(void)
+{
+	return usb_buffer;
+}
+static u32* get_last_transfer_size(void)
+{
+	return &last_transfer_size;
+}
 static void poll(void)
 {
 	HAL_Delay(10);
@@ -26,9 +41,9 @@ static void poll(void)
 }
 static void set_device_address(u8 address)
 {
-	printfUART("Setting address to %d\r\n", address);
+	_INFO("Setting address to %d\r\n", address);
 	// Issue another USB bus reset
-	printfUART("Issuing USB bus reset\r\n");
+	_DEBUG("Issuing USB bus reset\r\n",0);
 		
 	// initiate the 50 msec bus reset
 	MAX3421E.write_register(rHCTL, bmBUSRST);             
@@ -45,73 +60,25 @@ static void set_device_address(u8 address)
 		MAX3421E.write_register(rPERADDR, my_usb_device->address);         						
 	}
 }
-u8 rcode;
-static void parse_report_descriptor()
-{
-	// Get the 9-byte configuration descriptor
-		printfUART("\r\n\r\nHID Configuration Descriptor ");
-	if (!my_control_read_transfer(0x81, USB_REQUEST_GET_DESCRIPTOR, 0, HID_REPORT_DESCRIPTOR, 0, 141))
-	{
-	}
-}
 static void init(USBDevice* usbdevice) 
 {	
 	my_usb_device = usbdevice;	
 	MAX3421E.init();
-	int probe_result = detect_device();
-	MAX3421E.clear_conn_detect_irq();
-//	MAX3421E.enable_irq();
-
-	if(probe_result == LSHOST || probe_result == FSHOST) 
-	{		
-		MAX3421E.reset_bus();	
-	}	
+	busprobe();
 	initialize_device();	
-	//peek_device_descriptor();
+	UsbDescriptorParser.peek_device_descriptor(my_usb_device);
 	set_device_address(7);
-	parse_device_descriptor();
-	parse_config_descriptor();
-	MAX3421E.write_register(rHCTL, bmRCVTOG0);
-	//configuration = 1
-	my_control_write_no_data(bmREQ_SET, USB_REQUEST_SET_CONFIGURATION, 1, 0, 0, 0);
-	//duration=indefinite report=0
-	my_control_write_no_data(0x21, USB_REQUEST_GET_INTERFACE, 0, 0, 0, 0);
-	
-	parse_report_descriptor();
-
-	//MAX3421E.soft_reset();	
-	
-
-	my_usb_device->poll_enabled = true;
+	UsbDescriptorParser.parse_device_descriptor(my_usb_device);
+	UsbDescriptorParser.parse_config_descriptor(my_usb_device);
+	usbdevice->configure();		
 }
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
 	
-//	int probe_result;
-//	u8 HIRQ_sendback = 0;
-//	u8 HIRQ = MAX3421E.read_register(rHIRQ);  //determine interrupt source
-//	if(HIRQ & bmCONDETIRQ) {
-//		probe_result = detect_device();
-//		HIRQ_sendback = HIRQ_sendback | bmCONDETIRQ;
-//	}
-//            
-//	// End HIRQ interrupts handling, clear serviced IRQs
-//	MAX3421E.write_register(rHIRQ, HIRQ_sendback);
 
-	// Call the registered callback if the state has changed
-//	u8 state_change = (probe_result != -1);
-//	bool connected = (probe_result != 0);
-//	u8 lowspeed = (probe_result == LSHOST);
-//	if (state_change) {
-//		if (connected != running) {
-//			MAX3421E.reset_bus();
-//			//connect(connected, _config, lowspeed);
-//		} 
-//		if (!connected) running = false;
-//	}	
 }
 
-static int detect_device(void)
+static void busprobe(void)
 {
 	int busstate = -1;
 	// Activate HOST mode & turn on the 15K pulldown resistors on D+ and D-
@@ -139,211 +106,18 @@ static int detect_device(void)
 	{
 		// make the MAX3421E a full speed host
 		MAX3421E.write_register(rMODE, (bmDPPULLDN | bmDMPULLDN | bmHOST | bmSOFKAENAB));   
-		printfUART("Full-Speed Device Detected\r\n");
+		_DEBUG("Full-Speed Device Detected\r\n",0);
 	}
 	if (busstate == bmKSTATUS)  // K-state means D- high
 	{
 		// make the MAX3421E a low speed host        
 		MAX3421E.write_register(rMODE, (bmDPPULLDN | bmDMPULLDN | bmHOST | bmLOWSPEED | bmSOFKAENAB));   
-		printfUART("Low-Speed Device Detected\r\n");
+		_DEBUG("Low-Speed Device Detected\r\n",0);
 	}
-	return busstate;
+	MAX3421E.reset_bus();	
 }
 
-static void get_descriptor_string(u8 index, char* prefix)
-{
-	if (index != 0)
-	{
-		if (!my_control_read_transfer(bmREQ_GET_DESCR, USB_REQUEST_GET_DESCRIPTOR, index, USB_DESCRIPTOR_STRING, 0, 0x40))
-		{
-			printfUART("%s  \"", prefix);
-			for (int i = 2; i < last_transfer_size; i += 2)
-			{
-				printfUART("%c", (u8*)usb_buffer[i]);		
-			}
-			printfUART("\"\r\n");					
-		}
-	}	
-}
-static void get_language_id(void)
-{	
-	if (!my_control_read_transfer(bmREQ_GET_DESCR, USB_REQUEST_GET_DESCRIPTOR, 0, USB_DESCRIPTOR_STRING, 0, 0x40))				
-	{
-		printfUART("\nLanguage ID String Descriptor \"");
-		for (int i = 0; i < last_transfer_size; i++)
-		{
-			printfUART("%02X ", (u8*)usb_buffer[i]);			
-		}
-		printfUART("\"\r\n");	
-	}
-}
-static void peek_device_descriptor()
-{
-	printfUART("First 8 bytes of Device Descriptor \r\n");
-	if (!my_control_read_transfer(bmREQ_GET_DESCR, USB_REQUEST_GET_DESCRIPTOR, 0, USB_DESCRIPTOR_DEVICE, 0, 8))
-	{
-		USB_DEVICE_DESCRIPTOR *descriptor = (USB_DEVICE_DESCRIPTOR*)usb_buffer;
-		memcpy(&my_usb_device->device_descriptor, usb_buffer, sizeof(USB_DEVICE_DESCRIPTOR));
 
-		printfUART("(%u/%u NAKS)\r\n", IN_nak_count, HS_nak_count);   		
-	
-		for (int i = 0; i < last_transfer_size; i++)
-		{
-			printfUART("%02X ", (u8*)usb_buffer[i]);
-		}
-		printfUART("\r\n");
-		printfUART("EP0 maxPacketSize is %02u bytes\r\n", descriptor->bMaxPacketSize0);
-
-	}
-}
-static void parse_device_descriptor()
-{
-	USB_DEVICE_DESCRIPTOR *descriptor= (USB_DEVICE_DESCRIPTOR*)usb_buffer;	
-	printfUART("First 8 bytes of Device Descriptor \r\n");
-	if (!my_control_read_transfer(bmREQ_GET_DESCR, USB_REQUEST_GET_DESCRIPTOR, 0, USB_DESCRIPTOR_DEVICE, 0, 8))
-	{	
-//		 Get the device descriptor at the assigned address. 
-//		 fill in the real device descriptor length	
-		printfUART("\r\nDevice Descriptor ");
-		
-		MAX3421E.write_register(rHCTL, bmRCVTOG1);     //set toggle value
-	
-		if(!my_control_read_transfer(bmREQ_GET_DESCR, USB_REQUEST_GET_DESCRIPTOR, 0, USB_DESCRIPTOR_DEVICE, 0, descriptor->bLength))
-		{			
-					
-			memcpy(&my_usb_device->device_descriptor, usb_buffer, sizeof(USB_DEVICE_DESCRIPTOR));
-			
-			for (int i = 0; i < last_transfer_size; i++)
-			{
-				printfUART("%02X ", (u8*)usb_buffer[i]);			
-			}
-			printfUART("\r\n");
-			printfUART("This device has %u configuration\r\n", descriptor->bNumConfigurations);
-			printfUART("Vendor  ID is 0x%04X\r\n", descriptor->idVendor);
-			printfUART("Product ID is 0x%04X\r\n", descriptor->idProduct);
-			
-			get_language_id();
-			get_descriptor_string(my_usb_device->device_descriptor.iManufacturer, "Manufacturer ");	
-			get_descriptor_string(my_usb_device->device_descriptor.iProduct, "Product");
-			get_descriptor_string(my_usb_device->device_descriptor.iSerialNumber, "S/N");		
-		}	
-	}
-}
-
-static void parse_config_descriptor()
-{
-	
-	// Get the 9-byte configuration descriptor
-	printfUART("\r\n\r\nConfiguration Descriptor\r\n ");
-	printfUART("------------------------\r\n");
-
-	if (!my_control_read_transfer(bmREQ_GET_DESCR, USB_REQUEST_GET_DESCRIPTOR, 0, USB_DESCRIPTOR_CONFIGURATION, 0, 9))
-	{
-		USB_CONFIGURATION_DESCRIPTOR *prelim_config = (USB_CONFIGURATION_DESCRIPTOR*)usb_buffer;		
-		int descriptor_offset = 0;
-		if(!my_control_read_transfer(bmREQ_GET_DESCR, USB_REQUEST_GET_DESCRIPTOR, 0, USB_DESCRIPTOR_CONFIGURATION, 0, prelim_config->wTotalLength))
-		{
-			do
-			{				
-				uint8_t wDescriptorLength = usb_buffer[descriptor_offset];
-				uint8_t bDescrType = usb_buffer[descriptor_offset + 1];
-
-				switch(bDescrType)
-				{
-				case USB_DESCRIPTOR_CONFIGURATION:
-					{
-						USB_CONFIGURATION_DESCRIPTOR *descriptor = (USB_CONFIGURATION_DESCRIPTOR*)&usb_buffer[descriptor_offset];
-						memcpy(&my_usb_device->configuration_descriptor, &usb_buffer[descriptor_offset], sizeof(USB_CONFIGURATION_DESCRIPTOR));
-
-						printfUART("\r\nConfiguration Descriptor\r\n");
-						printfUART("bLength: %d\r\n", descriptor->bLength);
-						printfUART("bDescriptorType: %d\r\n", descriptor->bDescriptorType);
-						printfUART("wTotalLength: %d\r\n", descriptor->wTotalLength);
-						printfUART("bNumInterfaces: %d\r\n", descriptor->bNumInterfaces);
-						printfUART("bConfigurationValue: %d\r\n", descriptor->bConfigurationValue);
-						printfUART("iConfiguration: %d\r\n", descriptor->iConfiguration);																								
-						
-						printfUART("This device is ");
-						if (descriptor->bmAttributes & 0x40)
-						{
-							printfUART("self-powered\r\n");
-						}
-						else
-						{
-							printfUART("bus powered and uses %03u milliamps\r\n", descriptor->bMaxPower * 2);
-						}			
-					}
-					case USB_DESCRIPTOR_INTERFACE: 
-					{			
-						USB_INTERFACE_DESCRIPTOR *descriptor = (USB_INTERFACE_DESCRIPTOR*)&usb_buffer[descriptor_offset];
-						memcpy(&my_usb_device->interface_descriptor, &usb_buffer[descriptor_offset], sizeof(USB_INTERFACE_DESCRIPTOR));
-
-						printfUART("\r\nInterface Descriptor\r\n");				
-						printfUART("bLength: %d\r\n", descriptor->bLength);
-						printfUART("bDescriptorType: %d\r\n", descriptor->bDescriptorType);
-						printfUART("bInterfaceNumber: %d\r\n", descriptor->bInterfaceNumber);
-						printfUART("bAlternateSetting: %d\r\n", descriptor->bAlternateSetting);
-						printfUART("bNumEndpoints: %d\r\n", descriptor->bNumEndpoints);
-						printfUART("bInterfaceClass: %d\r\n", descriptor->bInterfaceClass);
-						printfUART("bInterfaceSubClass: %d\r\n", descriptor->bInterfaceSubClass);
-						printfUART("bInterfaceProtocol: %d\r\n", descriptor->bInterfaceProtocol);
-						printfUART("iInterface: %d\r\n", descriptor->iInterface);
-						break;
-					}			
-					case HID_DESCRIPTOR_HID: 
-					{
-						USB_HID_DESCRIPTOR *descriptor = (USB_HID_DESCRIPTOR*)&usb_buffer[descriptor_offset];
-						memcpy(&my_usb_device->hid_descriptor, &usb_buffer[descriptor_offset], sizeof(USB_HID_DESCRIPTOR));
-						printfUART("\r\nHID Descriptor\r\n");				
-						printfUART("bLength: %d\r\n", descriptor->bLength);
-						printfUART("bDescriptorType: %d\r\n", descriptor->bDescriptorType);
-						printfUART("bcdHID: %d\r\n", descriptor->bcdHID);
-						printfUART("bCountryCode: %d\r\n", descriptor->bCountryCode);
-						printfUART("bNumDescriptors: %d\r\n", descriptor->bNumDescriptors);
-						printfUART("bDescriptorType: %d\r\n", descriptor->bDescriptorType);
-						printfUART("wDescriptorLength: %d\r\n", descriptor->wDescriptorLength);
-						break;			
-					}
-					case USB_DESCRIPTOR_ENDPOINT:
-					{
-						printfUART("\r\nEndpoint Descriptor\r\n");				
-						// check for endpoint descriptor type				
-						USB_ENDPOINT_DESCRIPTOR *descriptor = (USB_ENDPOINT_DESCRIPTOR*)&usb_buffer[descriptor_offset];
-						memcpy(&my_usb_device->endpoint_descriptor, &usb_buffer[descriptor_offset], sizeof(USB_ENDPOINT_DESCRIPTOR));
-						my_usb_device->endpoint_descriptor.bEndpointAddress = (descriptor->bEndpointAddress & 0x0F);
-						printfUART("Endpoint %u", (descriptor->bEndpointAddress & 0x0F));
-						if (descriptor->bEndpointAddress & 0x80)
-						{
-							printfUART("-IN  ");
-						}
-						else 
-						{
-							printfUART("-OUT ");
-						}
-						printfUART("(%02u) is type ", (u8)descriptor->wMaxPacketSize);
-
-						switch (descriptor->bmAttributes & 0x03)
-						{
-						case USB_TRANSFER_TYPE_CONTROL:
-							printfUART("CONTROL\r\n"); 
-							break;
-						case USB_TRANSFER_TYPE_ISOCHRONOUS:
-							printfUART("ISOCHRONOUS\r\n"); 
-							break;
-						case USB_TRANSFER_TYPE_BULK:
-							printfUART("BULK\r\n"); 
-							break;
-						case USB_TRANSFER_TYPE_INTERRUPT:
-							printfUART("INTERRUPT with a polling interval of %u msec.\r\n", descriptor->bInterval);							
-						}
-						break;
-					}
-				}		
-				descriptor_offset += wDescriptorLength;  				
-			} while (descriptor_offset < last_transfer_size);
-		}
-	}	
-}
 
 static void initialize_device()
 {
@@ -559,46 +333,46 @@ static u8 send_packet(u8 token, u8 endpoint)
 static u8 print_error(u8 err)
 {
 	if (err)
-	{
-		printfUART(">>>>> Error >>>>> \r\n");
+	{		
 		switch (err)
 		{
 		case hrBUSY: 
-			printfUART("MAX3421E SIE is busy "); 
+			_ERROR("MAX3421E SIE is busy ",0); 
 			break;
 		case hrBADREQ: 
-			printfUART("Bad value in HXFR register "); 
+			_ERROR("Bad value in HXFR register ",0); 
 			break;
 		case hrNAK: 
-			printfUART("Exceeded NAK limit"); 
+			_ERROR("Exceeded NAK limit",0); 
 			break;
 		case hrKERR: 
-			printfUART("LS Timeout "); 
+			_ERROR("LS Timeout ",0); 
 			break;
 		case hrJERR: 
-			printfUART("FS Timeout "); 
+			_ERROR("FS Timeout ",0); 
 			break;
 		case hrTIMEOUT: 
-			printfUART("Device did not respond in time "); 
+			_ERROR("Device did not respond in time ",0); 
 			break;
 		case hrBABBLE: 
-			printfUART("Device babbled (sent too long) "); 
+			_ERROR("Device babbled (sent too long) ",0); 
 			break;
 		default:   
-			printfUART("Programming error %01X,", err);
+			_ERROR("Programming error %01X,", err);
 		}
 	}
 	return (err);
 }
-static u8* get_usb_buffer(void)
-{
-	return usb_buffer;
-}
+
 const struct usbcore USBCORE= { 
 	.init = init,		
 	.poll = poll,
 	.in_transfer = in_transfer,
 	.get_usb_buffer = get_usb_buffer,	
 	.send_packet = send_packet,
+	.my_control_write_no_data = my_control_write_no_data,
+	.my_control_read_transfer = my_control_read_transfer,
+	.get_last_transfer_size = get_last_transfer_size,
+	.get_usb_buffer = get_usb_buffer,
 };
 

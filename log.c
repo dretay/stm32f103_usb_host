@@ -3,7 +3,7 @@
 extern UART_HandleTypeDef huart1;
 
 //from: https://electronics.stackexchange.com/questions/206113/how-do-i-use-the-printf-function-on-stm32
-void vprint(const char *fmt, va_list argp)
+static void vprint(const char *fmt, va_list argp)
 {
 	char string[200];
 	if (0 < vsprintf(string, fmt, argp)) // build string

@@ -9,7 +9,7 @@
 #define constBuffLen 64  // event buffer length
 
 struct hiduniversal {
-	USBDevice*(*configure)(void);			
+	USBDevice*(*new)(void);			
 };
 
 extern const struct hiduniversal HIDUniversal;

@@ -3,7 +3,7 @@
 
 static void init(void)
 {	
-	USBCORE.init(HIDUniversal.configure());
+	USBCORE.init(HIDUniversal.new());
 }
 static void process(void)
 {	

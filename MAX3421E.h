@@ -11,7 +11,7 @@
 
 #define START_SPI_TRANSACTION HAL_GPIO_WritePin(MAX_CS_PORT, MAX_CS_PIN, GPIO_PIN_RESET);
 #define END_SPI_TRANSACTION HAL_GPIO_WritePin(MAX_CS_PORT, MAX_CS_PIN, GPIO_PIN_SET);
-#define VBUS_ON write_register(rIOPINS2,(read_register(rIOPINS2)|0x08));				// H-GPO7
+#define VBUS_ON write_register(rIOPINS2,(read_register(rIOPINS2)|0x08));				
 #define VBUS_OFF write_register(rIOPINS2,(read_register(rIOPINS2)& ~0x08));
 
 struct max3421e {
@@ -24,8 +24,7 @@ struct max3421e {
 	void(*hard_reset)(void);
 	void(*clear_conn_detect_irq)(void);
 	void(*enable_irq)(void);
-	void(*reset_bus)(void);
-	void(*set_address)(u8 addr, u8 ep);
+	void(*reset_bus)(void);	
 };
 
 extern const struct max3421e MAX3421E;

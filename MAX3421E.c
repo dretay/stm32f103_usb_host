@@ -87,60 +87,7 @@ static void reset_bus(void)
 	while((read_register(rHIRQ) & bmFRAMEIRQ) == 0);
 	HAL_Delay(3);
 }
-static s16 _lastAddr =-1, _lastEp =-1;
-static u8 _toggles[16][16] = { 0 };
-static void set_address(u8 addr, u8 ep) 
-{
-      
-	// Backup the toggle bits	
-	u8 curAddr = addr, currEp = ep;
-	
-	if (curAddr != _lastAddr || currEp != _lastEp) {
-		u8 oldtoggle = read_register(rHRSL) & (bmRCVTOGRD | bmSNDTOGRD);
-		u8 newtoggle = ((oldtoggle & bmRCVTOGRD) ? bmRCVTOG1 : bmRCVTOG0)
-		                | ((oldtoggle & bmSNDTOGRD) ? bmSNDTOG1 : bmSNDTOG0);
-		_toggles[_lastAddr][_lastEp] = newtoggle;
-		// server.log(format("*** Storing toggles 0x%02X for ep %s", _toggles[lastAddrEp], lastAddrEp))
-	}
 
-	//set peripheral address
-	write_register(rPERADDR, addr); 
-
-	// Set bmLOWSPEED and bmHUBPRE in case of low-speed device, reset them otherwise
-	u8 mode = read_register(rMODE);
-	u8 lowspeed = (mode & 0x02) == 0x02;
-	u8 bmHubPre = 0;  // Not supporting hubs, so this should remain 0 for now
-	write_register(rMODE, lowspeed ? (mode | bmLOWSPEED | bmHubPre) : (mode & ~(bmHUBPRE | bmLOWSPEED)));
-        
-	// Set the toggles, if required
-	u8 newToggles = 0x00;
-	if (curAddr == 0 && currEp ==0) {
-
-		newToggles = bmRCVTOG1 | bmSNDTOG1;
-		// server.log(format("*** Initialising toggles to 0x%02X for ep %s", newToggles, curAddrEp))
-
-	}
-	else if ((curAddr != _lastAddr || currEp != _lastEp) && (_toggles[curAddr][currEp] == 0)) {
-            
-		// Set the new toggle bits
-		newToggles = bmRCVTOG0 | bmSNDTOG0;
-		// server.log(format("*** Initialising toggles to 0x%02X for ep %s", newToggles, curAddrEp))
-            
-	}
-	else if ((curAddr != _lastAddr || currEp != _lastEp) && (_toggles[curAddr][currEp] != 0)) {
-            
-		// Restore the previous toggle bits for this AddrEp
-		newToggles = _toggles[curAddr][currEp];
-		// server.log(format("*** Restoring toggles 0x%02X for ep %s", newToggles, curAddrEp))
-            
-	} 
-        
-	if (newToggles != 0x00) {
-		// Now set the new toggles, if we have them
-		write_register(rHCTL, newToggles);
-	}
-	_lastAddr = curAddr;  
-}
 static void init(void)
 {
 	hard_reset();
@@ -168,6 +115,5 @@ const struct max3421e MAX3421E = {
 	.clear_conn_detect_irq = clear_conn_detect_irq,
 	.enable_irq = enable_irq,
 	.reset_bus = reset_bus,
-	.set_address = set_address,
 };
 

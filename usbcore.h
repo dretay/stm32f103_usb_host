@@ -8,6 +8,7 @@
 #include "stm32f1xx_hal.h"
 #include <stdbool.h>
 
+#include "UsbDescriptorParser.h"
 #include "MAX3421E_registers.h"
 #include "types_shortcuts.h"
 #include "MAX3421E.h"
@@ -27,28 +28,11 @@
 //#define LSHOST  = 3
 
 // Set transfer bounds
-#define NAK_LIMIT 200
+#define NAK_LIMIT 10
 #define RETRY_LIMIT 3
 
 #define LSHOST bmKSTATUS
 #define FSHOST bmJSTATUS 
-
-static int probe_bus(void);
-static int detect_device(void);
-static void enumerate_device(void);
-static u8 in_transfer(u8 endpoint, u16 INbytes);
-static u8 control_write_no_data(u8 *pSUD);
-static void wait_frames(u8 num);
-static u8 send_packet(u8 token, u8 endpoint);
-static u8 print_error(u8 err);
-static u8 control_read_transfer(u8 *pSUD);
-//see: https://www.beyondlogic.org/usbnutshell/usb6.shtml
-static u8 my_control_read_transfer(u8 bmRequestType, u8 bRequest, u8 wValueLo, u8 wValueHi, u16 wIndex, u16 wLength);
-static u8 my_control_write_no_data(u8 bmRequestType, u8 bRequest, u8 wValueLo, u8 wValueHi, u16 wIndex, u16 wLength);
-static void initialize_device(void);
-static void peek_device_descriptor(void);
-static void parse_device_descriptor(void);
-static void parse_config_descriptor(void);
 
 
 typedef struct {
@@ -99,6 +83,9 @@ struct usbcore {
 	u8(*in_transfer)(u8 endpoint, u16 INbytes);
 	u8*(*get_usb_buffer)(void);	
 	u8(*send_packet)(u8 token, u8 endpoint);
+	u8(*my_control_write_no_data)(u8 bmRequestType, u8 bRequest, u8 wValueLo, u8 wValueHi, u16 wIndex, u16 wLength);
+	u8(*my_control_read_transfer)(u8 bmRequestType, u8 bRequest, u8 wValueLo, u8 wValueHi, u16 wIndex, u16 wLength);
+	u32*(*get_last_transfer_size)(void);
 };
 
 extern const struct usbcore USBCORE;

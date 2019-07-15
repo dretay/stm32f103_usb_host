@@ -72,47 +72,69 @@ static u8 poll()
 
 			if (prev_mouse_info->bmLeftButton == 0 && mouse_info->bmLeftButton == 1)
 			{
-				printfUART("Left Mouse Down\r\n");
+				_INFO("Left Mouse Down", 0);
 			}
 			if (prev_mouse_info->bmLeftButton == 1 && mouse_info->bmLeftButton == 0)
 			{
-				printfUART("Left Mouse Up\r\n");				
+				_INFO("Left Mouse Up", 0);
 			}			
 			if (prev_mouse_info->bmRightButton == 0 && mouse_info->bmRightButton == 1)
 			{
-				printfUART("Right Mouse Down\r\n");				
+				_INFO("Right Mouse Down", 0);
 			}			
 			if (prev_mouse_info->bmRightButton == 1 && mouse_info->bmRightButton == 0)
 			{
-				printfUART("Right Mouse Up\r\n");								
+				_INFO("Right Mouse Up", 0);
 			}
 			if (prev_mouse_info->bmMiddleButton == 0 && mouse_info->bmMiddleButton == 1)
 			{
-				printfUART("Middle Mouse Down\r\n");								
+				_INFO("Middle Mouse Down", 0);
 			}
 			if (prev_mouse_info->bmMiddleButton == 1 && mouse_info->bmMiddleButton == 0)
 			{
-				printfUART("Middle Mouse Up\r\n");								
+				_INFO("Middle Mouse Up", 0);
 			}			
 			if (prev_mouse_info->dX != mouse_info->dX || prev_mouse_info->dY != mouse_info->dY)
 			{
-				printfUART("dX=%d dY=%d\r\n", mouse_info->dX, mouse_info->dY);												
+				_INFO("dX=%d dY=%d", mouse_info->dX, mouse_info->dY, 0);
 			}			
 		}
 		save_buffer(read, buf, prevBuf);
 	}	
 	return rcode;
 }
+static void parse_report_descriptor()
+{
+	// Get the 9-byte configuration descriptor
+	_DEBUG("", 0);
+	_DEBUG("HID Configuration Descriptor ",0);
+	if (!USBCORE.my_control_read_transfer(0x81, USB_REQUEST_GET_DESCRIPTOR, 0, HID_REPORT_DESCRIPTOR, 0, 141))
+	{
+	}
+}
+static void configure(void)
+{
+	MAX3421E.write_register(rHCTL, bmRCVTOG0);
+	//configuration = 1
+	USBCORE.my_control_write_no_data(bmREQ_SET, USB_REQUEST_SET_CONFIGURATION, 1, 0, 0, 0);
+	
+	//duration=indefinite report=0
+	USBCORE.my_control_write_no_data(0x21, USB_REQUEST_GET_INTERFACE, 0, 0, 0, 0);
 
-static USBDevice* configure(void)
+	parse_report_descriptor();
+	
+	device.poll_enabled = true;
+}
+static USBDevice* new(void)
 {
 	device.poll_enabled = false;
 	device.next_poll_time = 0;
 	device.poll= poll;
 	device.parse = parse;	
+	device.configure = configure;
 	return &device;
 }
 const struct hiduniversal HIDUniversal = { 
-	.configure = configure,			
+	.new = new,			
 };
 

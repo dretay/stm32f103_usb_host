@@ -45,7 +45,7 @@
     <AllDependencies>
       <ProjectDependency>
         <RelativePath>stm32f103_usb_host.gpdsc</RelativePath>
-        <Timestamp>132075100624545640</Timestamp>
+        <Timestamp>132075107422896335</Timestamp>
       </ProjectDependency>
     </AllDependencies>
     <RootDirectory>
