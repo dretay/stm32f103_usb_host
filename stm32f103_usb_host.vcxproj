@@ -49,9 +49,9 @@
       <CPPLanguageStandard />
     </ClCompile>
     <Link>
-      <LibrarySearchDirectories>%(Link.LibrarySearchDirectories)</LibrarySearchDirectories>
-      <AdditionalLibraryNames>%(Link.AdditionalLibraryNames)</AdditionalLibraryNames>
-      <AdditionalLinkerInputs>%(Link.AdditionalLinkerInputs)</AdditionalLinkerInputs>
+      <LibrarySearchDirectories>;%(Link.LibrarySearchDirectories)</LibrarySearchDirectories>
+      <AdditionalLibraryNames>;%(Link.AdditionalLibraryNames)</AdditionalLibraryNames>
+      <AdditionalLinkerInputs>;%(Link.AdditionalLinkerInputs)</AdditionalLinkerInputs>
       <AdditionalOptions />
       <LinkerScript />
     </Link>
@@ -108,10 +108,12 @@
     <ClCompile Include="Middlewares\ST\STM32_USB_Device_Library\Core\Src\usbd_core.c" />
     <ClCompile Include="Middlewares\ST\STM32_USB_Device_Library\Core\Src\usbd_ctlreq.c" />
     <ClCompile Include="Middlewares\ST\STM32_USB_Device_Library\Core\Src\usbd_ioreq.c" />
-    <ClCompile Include="usbcore.c" />
+    <ClCompile Include="USBCore.c" />
+    <ClCompile Include="UsbDescriptorParser.c" />
     <ClInclude Include="MAX3421E_registers.h" />
     <ClInclude Include="types_shortcuts.h" />
-    <ClInclude Include="usbcore.h" />
+    <ClInclude Include="USBCore.h" />
+    <ClInclude Include="UsbDescriptorParser.h" />
     <ClInclude Include="USBDevice.h" />
     <ClInclude Include="usb_ch9.h" />
     <None Include="stm32.props" />

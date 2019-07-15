@@ -1,7 +1,7 @@
 #pragma once
 
 #include "types_shortcuts.h"
-#include "usbcore.h"
+#include "USBCore.h"
 #include "USBDevice.h"
 
 //forward declaration

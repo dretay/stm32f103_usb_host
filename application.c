@@ -3,11 +3,11 @@
 
 static void init(void)
 {	
-	USBCORE.init(HIDUniversal.new());
+	USBCore.init(HIDUniversal.new());
 }
 static void process(void)
 {	
-	USBCORE.poll();
+	USBCore.poll();
 }
 
 const struct application Application = { 

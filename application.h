@@ -3,7 +3,7 @@
 #include <stdio.h>
 
 #include "log.h"
-#include "usbcore.h"
+#include "USBCore.h"
 
 struct application {
 	void(*init)(void);			

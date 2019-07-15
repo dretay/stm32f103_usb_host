@@ -3,7 +3,7 @@
 #include "usb_ch9.h"
 #include "types_shortcuts.h"
 #include "stdbool.h"
-#include "usbcore.h"
+#include "USBCore.h"
 #include "UsbDescriptorParser.h"
 
 struct USBDevice{

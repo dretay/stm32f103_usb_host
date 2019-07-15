@@ -51,14 +51,14 @@ static u8 poll()
 		uint16_t read = device.endpoint_descriptor.wMaxPacketSize;
 		zero_memory(constBuffLen, buf);	
 			
-		rcode = USBCORE.in_transfer(device.endpoint_descriptor.bEndpointAddress, read);						
+		rcode = USBCore.in_transfer(device.endpoint_descriptor.bEndpointAddress, read);						
 
 		if (rcode) {
 			if (rcode != hrNAK)
 				//USBTRACE3("(hiduniversal.h) Poll:", rcode, 0x81);
 			return rcode;
 		}
-		memcpy(buf, USBCORE.get_usb_buffer(), constBuffLen);
+		memcpy(buf, USBCore.get_usb_buffer(), constBuffLen);
 
 		if (read > constBuffLen)
 			read = constBuffLen;
@@ -109,13 +109,13 @@ static void parse_report_descriptor()
 	_DEBUG("", 0);
 	_DEBUG("HID Configuration Descriptor ",0);
 	_DEBUG("\t", 0);
-	u32 *buffer_size = USBCORE.get_last_transfer_size();
-	u8 *usb_buffer = USBCORE.get_usb_buffer();
-	if (!USBCORE.control_read_transfer(0x81, USB_REQUEST_GET_DESCRIPTOR, 0, HID_REPORT_DESCRIPTOR, 0, 141))
+	u32 *buffer_size = USBCore.get_last_transfer_size();
+	u8 *usb_buffer = USBCore.get_usb_buffer();
+	if (!USBCore.control_read_transfer(0x81, USB_REQUEST_GET_DESCRIPTOR, 0, HID_REPORT_DESCRIPTOR, 0, 141))
 	{
 		for (int ix = 0; ix < *buffer_size; ix++)
 		{
-			__DEBUG("%02X ",(u8*)usb_buffer[ix]);
+			__DEBUG("%02X ",usb_buffer[ix]);
 			if ((ix+1) % 8 == 0)
 			{
 				_DEBUG("\t", 0);			
@@ -127,10 +127,10 @@ static void configure(void)
 {
 	MAX3421E.write_register(rHCTL, bmRCVTOG0);
 	//configuration = 1
-	USBCORE.control_write_no_data(bmREQ_SET, USB_REQUEST_SET_CONFIGURATION, 1, 0, 0, 0);
+	USBCore.control_write_no_data(bmREQ_SET, USB_REQUEST_SET_CONFIGURATION, 1, 0, 0, 0);
 	
 	//duration=indefinite report=0
-	USBCORE.control_write_no_data(0x21, USB_REQUEST_GET_INTERFACE, 0, 0, 0, 0);
+	USBCore.control_write_no_data(0x21, USB_REQUEST_GET_INTERFACE, 0, 0, 0, 0);
 
 	parse_report_descriptor();
 	

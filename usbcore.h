@@ -88,5 +88,5 @@ struct usbcore {
 	u32*(*get_last_transfer_size)(void);
 };
 
-extern const struct usbcore USBCORE;
+extern const struct usbcore USBCore;
 

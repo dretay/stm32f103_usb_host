@@ -1,4 +1,4 @@
-#include "usbcore.h"
+#include "USBCore.h"
 
 static int probe_bus(void);
 static void busprobe(void);
@@ -345,7 +345,7 @@ static u8 print_error(u8 err)
 	return (err);
 }
 
-const struct usbcore USBCORE= { 
+const struct usbcore USBCore= { 
 	.init = init,		
 	.poll = poll,
 	.in_transfer = in_transfer,

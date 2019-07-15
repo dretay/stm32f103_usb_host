@@ -2,7 +2,7 @@
 
 #include "USBDevice.h"
 #include "stm32f1xx_hal.h"
-#include "usbcore.h"
+#include "USBCore.h"
 #include "MAX3421E.h"
 #include "log.h"
 
