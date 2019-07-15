@@ -108,8 +108,19 @@ static void parse_report_descriptor()
 	// Get the 9-byte configuration descriptor
 	_DEBUG("", 0);
 	_DEBUG("HID Configuration Descriptor ",0);
+	_DEBUG("\t", 0);
+	u32 *buffer_size = USBCORE.get_last_transfer_size();
+	u8 *usb_buffer = USBCORE.get_usb_buffer();
 	if (!USBCORE.control_read_transfer(0x81, USB_REQUEST_GET_DESCRIPTOR, 0, HID_REPORT_DESCRIPTOR, 0, 141))
 	{
+		for (int ix = 0; ix < *buffer_size; ix++)
+		{
+			__DEBUG("%02X ",(u8*)usb_buffer[ix]);
+			if ((ix+1) % 8 == 0)
+			{
+				_DEBUG("\t", 0);			
+			}			
+		}
 	}
 }
 static void configure(void)
