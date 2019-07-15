@@ -83,8 +83,8 @@ struct usbcore {
 	u8(*in_transfer)(u8 endpoint, u16 INbytes);
 	u8*(*get_usb_buffer)(void);	
 	u8(*send_packet)(u8 token, u8 endpoint);
-	u8(*my_control_write_no_data)(u8 bmRequestType, u8 bRequest, u8 wValueLo, u8 wValueHi, u16 wIndex, u16 wLength);
-	u8(*my_control_read_transfer)(u8 bmRequestType, u8 bRequest, u8 wValueLo, u8 wValueHi, u16 wIndex, u16 wLength);
+	u8(*control_write_no_data)(u8 bmRequestType, u8 bRequest, u8 wValueLo, u8 wValueHi, u16 wIndex, u16 wLength);
+	u8(*control_read_transfer)(u8 bmRequestType, u8 bRequest, u8 wValueLo, u8 wValueHi, u16 wIndex, u16 wLength);
 	u32*(*get_last_transfer_size)(void);
 };
 

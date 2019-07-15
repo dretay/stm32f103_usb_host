@@ -6,7 +6,7 @@ static void get_descriptor_string(u8 index, char* prefix)
 	u8 *usb_buffer = USBCORE.get_usb_buffer();
 	if (index != 0)
 	{
-		if (!USBCORE.my_control_read_transfer(bmREQ_GET_DESCR, USB_REQUEST_GET_DESCRIPTOR, index, USB_DESCRIPTOR_STRING, 0, 0x40))
+		if (!USBCORE.control_read_transfer(bmREQ_GET_DESCR, USB_REQUEST_GET_DESCRIPTOR, index, USB_DESCRIPTOR_STRING, 0, 0x40))
 		{
 			_DEBUG("\t%s  ", prefix);
 			for (int i = 2; i < *buffer_size; i += 2)
@@ -19,7 +19,7 @@ static void get_descriptor_string(u8 index, char* prefix)
 
 static void peek_device_descriptor(USBDevice *my_usb_device)
 {	
-	if (!USBCORE.my_control_read_transfer(bmREQ_GET_DESCR, USB_REQUEST_GET_DESCRIPTOR, 0, USB_DESCRIPTOR_DEVICE, 0, 8))
+	if (!USBCORE.control_read_transfer(bmREQ_GET_DESCR, USB_REQUEST_GET_DESCRIPTOR, 0, USB_DESCRIPTOR_DEVICE, 0, 8))
 	{
 		u32 *buffer_size = USBCORE.get_last_transfer_size();
 		u8 *usb_buffer = USBCORE.get_usb_buffer();
@@ -38,7 +38,7 @@ static void parse_device_descriptor(USBDevice *my_usb_device)
 	_DEBUG("", 0);
 	_DEBUG("Device Descriptor ",0);
 			
-	if(!USBCORE.my_control_read_transfer(bmREQ_GET_DESCR, USB_REQUEST_GET_DESCRIPTOR, 0, USB_DESCRIPTOR_DEVICE, 0, descriptor->bLength))
+	if(!USBCORE.control_read_transfer(bmREQ_GET_DESCR, USB_REQUEST_GET_DESCRIPTOR, 0, USB_DESCRIPTOR_DEVICE, 0, descriptor->bLength))
 	{			
 					
 		memcpy(&my_usb_device->device_descriptor, usb_buffer, sizeof(USB_DEVICE_DESCRIPTOR));
@@ -60,11 +60,11 @@ static void parse_config_descriptor(USBDevice *my_usb_device)
 	u32 *buffer_size = USBCORE.get_last_transfer_size();
 	u8 *usb_buffer = USBCORE.get_usb_buffer();
 
-	if (!USBCORE.my_control_read_transfer(bmREQ_GET_DESCR, USB_REQUEST_GET_DESCRIPTOR, 0, USB_DESCRIPTOR_CONFIGURATION, 0, 9))
+	if (!USBCORE.control_read_transfer(bmREQ_GET_DESCR, USB_REQUEST_GET_DESCRIPTOR, 0, USB_DESCRIPTOR_CONFIGURATION, 0, 9))
 	{
 		USB_CONFIGURATION_DESCRIPTOR *prelim_config = (USB_CONFIGURATION_DESCRIPTOR*)usb_buffer;		
 		int descriptor_offset = 0;
-		if (!USBCORE.my_control_read_transfer(bmREQ_GET_DESCR, USB_REQUEST_GET_DESCRIPTOR, 0, USB_DESCRIPTOR_CONFIGURATION, 0, prelim_config->wTotalLength))
+		if (!USBCORE.control_read_transfer(bmREQ_GET_DESCR, USB_REQUEST_GET_DESCRIPTOR, 0, USB_DESCRIPTOR_CONFIGURATION, 0, prelim_config->wTotalLength))
 		{
 			do
 			{				

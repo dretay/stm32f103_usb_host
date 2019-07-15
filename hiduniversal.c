@@ -108,7 +108,7 @@ static void parse_report_descriptor()
 	// Get the 9-byte configuration descriptor
 	_DEBUG("", 0);
 	_DEBUG("HID Configuration Descriptor ",0);
-	if (!USBCORE.my_control_read_transfer(0x81, USB_REQUEST_GET_DESCRIPTOR, 0, HID_REPORT_DESCRIPTOR, 0, 141))
+	if (!USBCORE.control_read_transfer(0x81, USB_REQUEST_GET_DESCRIPTOR, 0, HID_REPORT_DESCRIPTOR, 0, 141))
 	{
 	}
 }
@@ -116,10 +116,10 @@ static void configure(void)
 {
 	MAX3421E.write_register(rHCTL, bmRCVTOG0);
 	//configuration = 1
-	USBCORE.my_control_write_no_data(bmREQ_SET, USB_REQUEST_SET_CONFIGURATION, 1, 0, 0, 0);
+	USBCORE.control_write_no_data(bmREQ_SET, USB_REQUEST_SET_CONFIGURATION, 1, 0, 0, 0);
 	
 	//duration=indefinite report=0
-	USBCORE.my_control_write_no_data(0x21, USB_REQUEST_GET_INTERFACE, 0, 0, 0, 0);
+	USBCORE.control_write_no_data(0x21, USB_REQUEST_GET_INTERFACE, 0, 0, 0, 0);
 
 	parse_report_descriptor();
 	

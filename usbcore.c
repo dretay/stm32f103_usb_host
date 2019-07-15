@@ -4,23 +4,18 @@ static int probe_bus(void);
 static void busprobe(void);
 static void enumerate_device(void);
 static u8 in_transfer(u8 endpoint, u16 INbytes);
-static u8 control_write_no_data(u8 *pSUD);
 static void wait_frames(u8 num);
 static u8 send_packet(u8 token, u8 endpoint);
 static u8 print_error(u8 err);
-static u8 control_read_transfer(u8 *pSUD);
-//see: https://www.beyondlogic.org/usbnutshell/usb6.shtml
-static u8 my_control_read_transfer(u8 bmRequestType, u8 bRequest, u8 wValueLo, u8 wValueHi, u16 wIndex, u16 wLength);
-static u8 my_control_write_no_data(u8 bmRequestType, u8 bRequest, u8 wValueLo, u8 wValueHi, u16 wIndex, u16 wLength);
 static void initialize_device(void);
-
+static u8 control_write_no_data(u8 bmRequestType, u8 bRequest, u8 wValueLo, u8 wValueHi, u16 wIndex, u16 wLength);
 extern UART_HandleTypeDef huart1;
 
 
 // Global variables
 static u8 usb_buffer[2000];        // Big array to handle max size descriptor data
 
-static u16 VID, PID, nak_count, IN_nak_count, HS_nak_count;
+static u16 nak_count, IN_nak_count, HS_nak_count;
 static u32 last_transfer_size;	
 
 
@@ -51,7 +46,7 @@ static void set_device_address(u8 address)
 	// Wait for the bus reset to complete
 	while(MAX3421E.read_register(rHCTL) & bmBUSRST);    
 	wait_frames(200);
-	if (!my_control_write_no_data(bmREQ_SET, USB_REQUEST_SET_ADDRESS, address, 0, 0, 0))
+	if (!control_write_no_data(bmREQ_SET, USB_REQUEST_SET_ADDRESS, address, 0, 0, 0))
 	{
 		my_usb_device->address = 7;			
 		// Device gets 2 msec recovery time
@@ -117,8 +112,6 @@ static void busprobe(void)
 	MAX3421E.reset_bus();	
 }
 
-
-
 static void initialize_device()
 {
 	// First request goes to address 0
@@ -127,9 +120,7 @@ static void initialize_device()
 	
 }
 
-
-
-static u8 my_control_read_transfer(u8 bmRequestType, u8 bRequest, u8 wValueLo, u8 wValueHi, u16 wIndex, u16 wLength) 
+static u8 control_read_transfer(u8 bmRequestType, u8 bRequest, u8 wValueLo, u8 wValueHi, u16 wIndex, u16 wLength) 
 {
 	SETUP_PKT setup_pkt;
 	setup_pkt.ReqType_u.bmRequestType = bmRequestType;
@@ -138,17 +129,12 @@ static u8 my_control_read_transfer(u8 bmRequestType, u8 bRequest, u8 wValueLo, u
 	setup_pkt.wVal_u.wValueHi = wValueHi;
 	setup_pkt.wIndex = wIndex;
 	setup_pkt.wLength = wLength;
-	return control_read_transfer((uint8_t*)&setup_pkt);
-}
-static u8 control_read_transfer(u8 *pSUD)
-{
+
 	u8  resultcode;
-	u16	bytes_to_read;
-	bytes_to_read = pSUD[6] + 256*pSUD[7];
 
 	// SETUP packet
 	// Load the Setup data FIFO
-	MAX3421E.write_bytes(rSUDFIFO, 8, pSUD);       		
+	MAX3421E.write_bytes(rSUDFIFO, 8, (u8*)&setup_pkt);       		
 	
 	// SETUP packet to EP0
 	resultcode = send_packet(tokSETUP, 0);    	
@@ -162,7 +148,7 @@ static u8 control_read_transfer(u8 *pSUD)
 	// One or more IN packets (may be a multi-packet transfer)
 	// FIRST Data packet in a CTL transfer uses DATA1 toggle.
 	MAX3421E.write_register(rHCTL, bmRCVTOG1);             			
-	resultcode = in_transfer(0, bytes_to_read); 
+	resultcode = in_transfer(0, setup_pkt.wLength); 
 	if (resultcode) 
 	{
 		return (resultcode);
@@ -220,7 +206,7 @@ static u8 in_transfer(u8 endpoint, u16 INbytes)
 		}
 	}
 }
-static u8 my_control_write_no_data(u8 bmRequestType, u8 bRequest, u8 wValueLo, u8 wValueHi, u16 wIndex, u16 wLength) 
+static u8 control_write_no_data(u8 bmRequestType, u8 bRequest, u8 wValueLo, u8 wValueHi, u16 wIndex, u16 wLength) 
 {
 	SETUP_PKT setup_pkt;
 	setup_pkt.ReqType_u.bmRequestType = bmRequestType;
@@ -229,12 +215,9 @@ static u8 my_control_write_no_data(u8 bmRequestType, u8 bRequest, u8 wValueLo, u
 	setup_pkt.wVal_u.wValueHi = wValueHi;
 	setup_pkt.wIndex = wIndex;
 	setup_pkt.wLength = wLength;
-	return control_write_no_data((uint8_t*)&setup_pkt);
-}
-static u8 control_write_no_data(u8 *pSUD)
-{
+
 	u8 resultcode;
-	MAX3421E.write_bytes(rSUDFIFO, 8, pSUD);
+	MAX3421E.write_bytes(rSUDFIFO, 8, (u8*)&setup_pkt);
 	//Send the SETUP token and 8 setup bytes. Device should immediately ACK.
 	resultcode = send_packet(tokSETUP, 0);     
 	if (resultcode)
@@ -257,8 +240,6 @@ static u8 control_write_no_data(u8 *pSUD)
 		return (0);
 	}
 }
-
-
 
 static void wait_frames(u8 num)
 {
@@ -370,8 +351,8 @@ const struct usbcore USBCORE= {
 	.in_transfer = in_transfer,
 	.get_usb_buffer = get_usb_buffer,	
 	.send_packet = send_packet,
-	.my_control_write_no_data = my_control_write_no_data,
-	.my_control_read_transfer = my_control_read_transfer,
+	.control_write_no_data = control_write_no_data,
+	.control_read_transfer = control_read_transfer,
 	.get_last_transfer_size = get_last_transfer_size,
 	.get_usb_buffer = get_usb_buffer,
 };
